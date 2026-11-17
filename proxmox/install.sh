@@ -11,11 +11,21 @@ command -v pct >/dev/null || die "Run this on the Proxmox host."
 pveversion
 echo "Host RAM: $(free -g | awk '/Mem:/{print $2" GB total, "$7" GB available"}')"; echo
 
-echo "AI categorization: 'none' (rules only, light) or 'ollama' (local LLM on CPU, needs ~8 GB RAM)."
+echo "AI categorization: 'none' (rules only) or 'ollama' (local LLM)."
 LLM=$(ask "LLM" "none"); [[ $LLM == none || $LLM == ollama ]] || die "LLM must be none or ollama"
-MODEL=qwen3:4b; [[ $LLM == ollama ]] && MODEL=$(ask "Ollama model" "qwen3:4b")
+MODEL=qwen3:4b OLLAMA_URL=""
+if [[ $LLM == ollama ]]; then
+  echo "Already run Ollama on another machine? Enter its URL, e.g. http://192.168.1.70:11434"
+  OLLAMA_URL=$(ask "Existing Ollama URL (empty = run Ollama inside this container)" "")
+  OLLAMA_URL=${OLLAMA_URL%/}
+  if [[ -n $OLLAMA_URL ]]; then
+    if curl -fsS -m 5 "$OLLAMA_URL/api/tags" >/dev/null; then echo "Ollama reachable from this host."
+    else echo "WARNING: can't reach $OLLAMA_URL/api/tags from this host (it must listen on the network, e.g. OLLAMA_HOST=0.0.0.0)."; fi
+  fi
+  MODEL=$(ask "Ollama model" "qwen3:4b")
+fi
 def_mem=4096 def_disk=20 def_cores=2
-[[ $LLM == ollama ]] && { def_mem=8192; def_disk=40; def_cores=4; }
+[[ $LLM == ollama && -z $OLLAMA_URL ]] && { def_mem=8192; def_disk=40; def_cores=4; }
 
 CTID=$(ask "Container ID" "$(pvesh get /cluster/nextid)")
 HOSTNAME_=$(ask "Hostname" "finima")
@@ -48,7 +58,7 @@ cat <<PLAN
 Template: $TEMPLATE (downloaded to 'local' if missing)
 Command:  ${CREATE[*]}
 Inside:   Docker (official repo), github.com/Mcp20091/finima @ $REF -> /opt/finima,
-          images ghcr.io/pacphi/finima-*:$VERSION, LLM=$LLM${LLM/none/}$([[ $LLM == ollama ]] && echo " ($MODEL)"),
+          images ghcr.io/pacphi/finima-*:$VERSION, LLM=$LLM$([[ $LLM == ollama ]] && echo " ($MODEL @ ${OLLAMA_URL:-in this container})"),
           URL=${URL:-http://<container IP>}, random secrets in /opt/finima/.env
 ======================================
 PLAN
@@ -67,6 +77,7 @@ FINIMA_VERSION=$VERSION
 FINIMA_URL=$URL
 FINIMA_LLM=$LLM
 FINIMA_OLLAMA_MODEL=$MODEL
+FINIMA_OLLAMA_URL=$OLLAMA_URL
 RESEND_API_KEY=$RESEND
 ENV
 pct push "$CTID" "$envfile" /root/finima-install.env --perms 600; rm -f "$envfile"

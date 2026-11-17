@@ -20,6 +20,11 @@ prints the full plan, and changes nothing until you answer `y`. Then it opens at
 |---|---|---|
 | `none` | Rule-based categorization only | 2 cores, 4 GB RAM, 20 GB disk |
 | `ollama` | Local LLM (`qwen3:4b` by default) on CPU | 4 cores, 8 GB RAM, 40 GB disk |
+| `ollama` + existing server URL | Uses Ollama already running on another machine | 2 cores, 4 GB RAM, 20 GB disk |
+
+For a remote Ollama, that machine must listen on the network (`OLLAMA_HOST=0.0.0.0`) and have the
+model pulled (`ollama pull qwen3:4b`). To change it later, edit `FINIMA_OLLAMA_URL` in `/opt/finima/.env`
+and run `finima-update`.
 
 Use a static IP or a DHCP reservation: the URL is baked into sign-in links.
 
