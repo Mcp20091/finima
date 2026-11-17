@@ -44,8 +44,10 @@ VERSION=$(ask "Finima image version" "0.2.0")
 read -rsp "Resend API key for emailed sign-in links (optional, Enter to skip): " RESEND; echo
 
 pveam update >/dev/null
-TEMPLATE=$(pveam available --section system | awk '/debian-13-standard/{print $2}' | sort -V | tail -1)
-[[ -n $TEMPLATE ]] || die "No Debian 13 template listed by pveam."
+# Template must match the host CPU (the list has both amd64 and arm64 builds).
+ARCH=$(dpkg --print-architecture)
+TEMPLATE=$(pveam available --section system | awk -v a="_$ARCH.tar" '/debian-13-standard/ && index($2, a) {print $2}' | sort -V | tail -1)
+[[ -n $TEMPLATE ]] || die "No Debian 13 $ARCH template listed by pveam."
 
 CREATE=(pct create "$CTID" "local:vztmpl/$TEMPLATE" --hostname "$HOSTNAME_"
   --unprivileged 1 --features nesting=1,keyctl=1
