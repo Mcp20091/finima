@@ -79,3 +79,6 @@ CLAUDE.local.md
 .dolt/
 *.db
 .beads-credential-key
+
+# Proxmox LXC generated config
+proxmox/local/

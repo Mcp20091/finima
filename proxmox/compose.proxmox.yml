@@ -1,0 +1,23 @@
+# Proxmox LXC overlay for docker-compose.prod.yml.
+# Selected automatically via COMPOSE_FILE in .env, so plain `docker compose ...` works in /opt/finima.
+services:
+  backend:
+    image: ghcr.io/pacphi/finima-backend:${FINIMA_VERSION:-0.2.0}
+    environment:
+      APP__AUTH__PUBLIC_URL: ${FINIMA_URL}
+      APP__LLM__PROVIDER: ${FINIMA_LLM_PROVIDER:-none}
+      APP__LLM__OLLAMA__MODEL: ${FINIMA_OLLAMA_MODEL:-qwen3:4b}
+      APP__LLM__OLLAMA__URL: ${FINIMA_OLLAMA_URL:-http://ollama:11434}
+    volumes:
+      # production.yaml + cors.allowed_origins (lists can't be set via APP__ env vars)
+      - ./proxmox/local/production.yaml:/app/config/production.yaml:ro
+
+  frontend:
+    image: ghcr.io/pacphi/finima-frontend:${FINIMA_VERSION:-0.2.0}
+
+  ollama:
+    profiles: ["ollama"]   # only started for a local Ollama (FINIMA_OLLAMA_URL empty)
+
+  caddy:
+    environment:
+      DOMAIN: ${DOMAIN:-:80}   # ":80" = plain HTTP on any address (LAN)
